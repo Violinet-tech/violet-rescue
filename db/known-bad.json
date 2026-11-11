@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "updated": "2026-11-07",
+  "bad": [
+    {
+      "match": "26100.9711.1.30",
+      "build": "26100.9711 / 26200.9711",
+      "note": "Suspected boot loop (INACCESSIBLE_BOOT_DEVICE, 0xc000007b) on one X570 PC, Nov 2026. Not confirmed by Microsoft."
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "url": "",
+  "note": "Where update-db downloads known-bad.json from. Empty until the list is hosted."
+}

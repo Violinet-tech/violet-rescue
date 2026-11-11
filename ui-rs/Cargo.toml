@@ -1,0 +1,33 @@
+[package]
+name = "violet-rescue-ui"
+version = "0.1.0"
+edition = "2021"
+description = "Violet Rescue: glass front end for cli/rescue.ps1, software-rendered so it runs inside WinRE"
+
+[[bin]]
+name = "VioletRescueUI"
+path = "src/main.rs"
+
+[dependencies]
+tiny-skia = "0.11.4"
+fontdue = "0.9.3"
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_HiDpi",
+  "Win32_System_LibraryLoader",
+  "Win32_Storage_FileSystem",
+] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Even debug builds need speed: the whole window is drawn on the CPU.
+[profile.dev]
+opt-level = 2

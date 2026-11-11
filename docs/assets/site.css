@@ -1,0 +1,70 @@
+/* Violet Rescue pages. Same world as the app: a near-black void, violet and cyan light, frosted glass. */
+:root {
+  --void: #07060d; --ink: #ece9f7; --dim: #b3acd0; --faint: #7d7699;
+  --glass: rgba(255, 255, 255, 0.06); --glass-edge: rgba(255, 255, 255, 0.16);
+  --violet: #8a6bff; --cyan: #4fc3ff; --magenta: #ff6ad5; --ok: #7be3a4; --warn: #ffb24d;
+  --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; color: var(--ink); font: 16px/1.65 var(--body);
+  background:
+    radial-gradient(60vw 50vw at 12% 8%, rgba(138, 107, 255, 0.30), transparent 70%),
+    radial-gradient(45vw 40vw at 92% 14%, rgba(79, 195, 255, 0.18), transparent 70%),
+    radial-gradient(50vw 40vw at 64% 100%, rgba(255, 106, 213, 0.16), transparent 70%),
+    var(--void);
+  background-attachment: fixed;
+}
+a { color: var(--cyan); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
+.wrap { max-width: 1060px; margin: 0 auto; padding-left: max(18px, env(safe-area-inset-left, 0px)); padding-right: max(18px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(36px, 6vw, 64px); letter-spacing: -0.02em; }
+h2 { font-size: clamp(24px, 3.2vw, 32px); }
+h3 { font-size: 19px; }
+p { margin: 0; max-width: 66ch; }
+code, kbd { font-family: var(--mono); font-size: 0.88em; background: rgba(255,255,255,0.07); border: 1px solid var(--glass-edge); border-radius: 6px; padding: 1px 6px; }
+.dim { color: var(--dim); }
+.eyebrow { font: 600 12px var(--body); letter-spacing: 0.14em; text-transform: uppercase; color: var(--cyan); }
+
+/* the floating glass bar, like the app's header */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; padding-block: 14px; }
+.nav .bar {
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap; padding: 10px 18px; border-radius: 999px;
+  background: rgba(16, 12, 30, 0.55); border: 1px solid var(--glass-edge); backdrop-filter: blur(18px) saturate(1.5); -webkit-backdrop-filter: blur(18px) saturate(1.5);
+}
+.brand { display: flex; align-items: center; gap: 10px; font: 700 18px var(--display); color: var(--ink); text-decoration: none; }
+.orb { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff 0, var(--magenta) 30%, var(--violet) 65%, var(--cyan) 100%); box-shadow: 0 0 18px rgba(138,107,255,0.7); }
+.nav .links { display: flex; gap: 16px; margin-left: auto; flex-wrap: wrap; }
+.nav .links a { color: var(--dim); text-decoration: none; font-weight: 600; font-size: 14px; }
+.nav .links a:hover, .nav .links a[aria-current] { color: var(--ink); }
+
+.glass {
+  background: linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
+  border: 1px solid var(--glass-edge); border-radius: 24px;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.25);
+  backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+}
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 999px; font-weight: 700; text-decoration: none; color: var(--ink); border: 1px solid var(--glass-edge); background: rgba(255,255,255,0.07); }
+.btn.primary { background: linear-gradient(90deg, rgba(138,107,255,0.85), rgba(79,195,255,0.55)); border-color: rgba(255,255,255,0.35); }
+.btn:hover { filter: brightness(1.12); }
+
+section { padding-block: 56px; display: grid; gap: 22px; }
+.grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+.card { padding: 22px; display: grid; gap: 8px; align-content: start; }
+.card .num { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: rgba(255,255,255,0.12); border: 1px solid var(--glass-edge); }
+.card.first .num { background: radial-gradient(circle at 35% 30%, #fff 0, var(--violet) 45%, var(--cyan) 100%); }
+.shot { margin: 0; display: grid; gap: 8px; }
+.shot img { width: 100%; height: auto; display: block; border-radius: 18px; border: 1px solid var(--glass-edge); box-shadow: 0 24px 60px rgba(0,0,0,0.5); }
+.shot figcaption { color: var(--dim); font-size: 14px; }
+.note { padding: 16px 20px; border-radius: 18px; border: 1px solid rgba(255,178,77,0.5); background: rgba(255,178,77,0.08); }
+.note strong { color: var(--warn); }
+.diagram { overflow-x: auto; padding: 18px; }
+.diagram svg { display: block; min-width: 720px; width: 100%; height: auto; }
+ol.steps { margin: 0; padding-left: 22px; display: grid; gap: 10px; max-width: 72ch; }
+footer { padding-block: 40px 60px; color: var(--faint); font-size: 14px; }

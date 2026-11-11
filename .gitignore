@@ -1,0 +1,7 @@
+# build output
+ui-rs/target/
+# the built window ships as a release asset, not in the source tree
+gui/*.exe
+*.log
+# drivers are not redistributable; fill drivers/ for your own media
+drivers/*/

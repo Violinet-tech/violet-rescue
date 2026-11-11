@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Violet Rescue Slides</title>
+<meta name="description" content="A short deck on Violet Rescue: what it fixes, how to use it, and what is still unproven.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  html, body { height: 100%; }
+  body { overflow: hidden; }
+  .deck { height: 100%; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .deck::-webkit-scrollbar { display: none; }
+  .slide { flex: 0 0 100%; height: 100%; scroll-snap-align: start; display: grid; place-items: center; padding: 70px max(24px, 5vw) 60px; }
+  .inner { width: min(1100px, 100%); display: grid; gap: 22px; }
+  .slide h2 { font-size: clamp(30px, 4.6vw, 54px); }
+  .slide .big { font-size: clamp(18px, 2.2vw, 24px); color: var(--dim); max-width: 50ch; }
+  .split { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); align-items: center; }
+  .slide img { width: 100%; border-radius: 18px; border: 1px solid var(--glass-edge); box-shadow: 0 24px 60px rgba(0,0,0,0.5); max-height: 62vh; object-fit: contain; }
+  ul.points { margin: 0; padding-left: 22px; display: grid; gap: 10px; font-size: clamp(16px, 1.8vw, 20px); }
+  .hud { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; translate: -50% 0; display: flex; gap: 10px; align-items: center; padding: 8px 14px; border-radius: 999px; background: rgba(16,12,30,0.6); border: 1px solid var(--glass-edge); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index: 3; }
+  .hud button { font: 700 14px var(--body); color: var(--ink); background: rgba(255,255,255,0.08); border: 1px solid var(--glass-edge); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+  .hud span { color: var(--dim); font-size: 13px; min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+  .home { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); left: max(18px, env(safe-area-inset-left, 0px)); z-index: 3; }
+</style>
+</head>
+<body>
+<a class="brand home" href="./"><span class="orb" aria-hidden="true"></span>Violet Rescue</a>
+<main class="deck" id="deck" tabindex="0" aria-label="Slides. Use the arrow keys.">
+  <section class="slide"><div class="inner">
+    <span class="eyebrow">Violet Rescue 0.1</span>
+    <h1>Your PC won't start.<br>Violet Rescue will.</h1>
+    <p class="big">A repair app that boots from a USB stick and fixes Windows 10 and 11 with big buttons.</p>
+  </div></section>
+
+  <section class="slide"><div class="inner split">
+    <div style="display:grid;gap:16px"><h2>The problem</h2>
+    <ul class="points"><li>An update or driver breaks startup: a boot loop or an error code.</li><li>Windows' own recovery offers a few tiles, then a command prompt.</li><li>System Restore often fails with an error of its own.</li></ul></div>
+    <div class="glass card"><h3>What people see</h3><p class="dim">"Your PC couldn't start properly." "System Restore did not complete successfully." "The system registry file is missing or contains errors."</p></div>
+  </div></section>
+
+  <section class="slide"><div class="inner split">
+    <div style="display:grid;gap:16px"><h2>Go down the list</h2>
+    <ul class="points"><li>1 Remove the bad update</li><li>2 Undo pending updates</li><li>3 System Restore</li><li>4 Fix the boot files</li><li>5 Copy my files off, first</li></ul></div>
+    <img src="img/fix.png" alt="The Fix it page" loading="lazy">
+  </div></section>
+
+  <section class="slide"><div class="inner split">
+    <div style="display:grid;gap:16px"><h2>Three ways back</h2>
+    <ul class="points"><li>Safer System Restore</li><li>Registry from a restore point, checked before use</li><li>Violet snapshots, with no System Restore needed</li></ul>
+    <p class="dim">Every put-back saves the current registry first.</p></div>
+    <img src="img/restore.png" alt="The Restore points page" loading="lazy">
+  </div></section>
+
+  <section class="slide"><div class="inner split">
+    <div style="display:grid;gap:16px"><h2>Every tool, one tap</h2>
+    <p class="big">SFC, CHKDSK, DISM, drivers, startup items, rollback by date, backups. 21 commands, each a card, each asking before it changes anything.</p></div>
+    <img src="img/repair.png" alt="The Repair tools page" loading="lazy">
+  </div></section>
+
+  <section class="slide"><div class="inner split">
+    <div style="display:grid;gap:16px"><h2>Built for the recovery screen</h2>
+    <ul class="points"><li>Native Rust, drawn on the CPU: no graphics driver needed</li><li>Glass menu, inertial scrolling, touch and keyboard</li><li>Fits from 800 × 600 up</li><li>Falls back to the classic window if it can't start</li></ul></div>
+    <img src="img/small.png" alt="The app at 800 by 600 pixels" loading="lazy">
+  </div></section>
+
+  <section class="slide"><div class="inner">
+    <h2>Make the stick</h2>
+    <ul class="points"><li>On a working Windows 11 PC: install the ADK with <code>build\get-adk.cmd</code></li><li>Copy the hidden <code>Winre.wim</code> (<code>reagentc /info</code> shows where)</li><li>Run <code>build\build-media.cmd Winre.wim E:</code> as administrator. It erases the stick.</li><li>Boot the broken PC from it.</li></ul>
+    <a class="btn" href="guide.html" style="justify-self:start">Full guide</a>
+  </div></section>
+
+  <section class="slide"><div class="inner">
+    <h2>Honest status</h2>
+    <ul class="points"><li>Booted and used on one real broken PC.</li><li>Not tested across many machines yet.</li><li>One repair once made things worse. It now checks its copies before using them.</li><li>Copy your files off before any repair.</li></ul>
+    <div class="cta" style="display:flex;gap:12px;flex-wrap:wrap"><a class="btn primary" href="https://github.com/Violinet-tech/violet-rescue/releases">Download 0.1</a><a class="btn" href="https://github.com/Violinet-tech/violet-rescue">GitHub</a></div>
+  </div></section>
+</main>
+<div class="hud" aria-hidden="false"><button type="button" id="prev" aria-label="Previous slide">‹</button><span id="pos">1 / 8</span><button type="button" id="next" aria-label="Next slide">›</button></div>
+<script>
+(function () {
+  var deck = document.getElementById('deck');
+  var slides = deck.querySelectorAll('.slide');
+  var pos = document.getElementById('pos');
+  function idx() { return Math.round(deck.scrollLeft / deck.clientWidth); }
+  function go(i) { i = Math.max(0, Math.min(slides.length - 1, i)); deck.scrollTo({ left: i * deck.clientWidth, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
+  function show() { pos.textContent = (idx() + 1) + ' / ' + slides.length; }
+  document.getElementById('prev').onclick = function () { go(idx() - 1); };
+  document.getElementById('next').onclick = function () { go(idx() + 1); };
+  deck.addEventListener('scroll', show, { passive: true });
+  addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); go(idx() + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(idx() - 1); }
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End') go(slides.length - 1);
+  });
+  show(); deck.focus();
+})();
+</script>
+</body>
+</html>

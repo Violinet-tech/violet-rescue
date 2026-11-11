@@ -1,0 +1,3 @@
+# Static C runtime: WinRE does not carry the Visual C++ redistributable.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

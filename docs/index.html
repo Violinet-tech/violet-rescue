@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Violet Rescue</title>
+<meta name="description" content="Violet Rescue boots from a USB stick and repairs a Windows 10 or 11 PC that won't start, with big buttons instead of commands.">
+<meta property="og:title" content="Violet Rescue">
+<meta property="og:description" content="Repair a Windows PC that won't start, from a USB stick, with big buttons.">
+<meta property="og:image" content="img/fix.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  .hero { padding-block: 40px 30px; display: grid; gap: 34px; }
+  .hero .lead { font-size: clamp(18px, 2.2vw, 21px); color: var(--dim); max-width: 58ch; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .facts { display: flex; gap: 10px; flex-wrap: wrap; }
+  .facts span { font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--glass-edge); color: var(--dim); }
+  .pair { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+</style>
+</head>
+<body>
+<header class="nav wrap">
+  <div class="bar">
+    <a class="brand" href="./"><span class="orb" aria-hidden="true"></span>Violet Rescue</a>
+    <nav class="links" aria-label="Pages">
+      <a href="./" aria-current="page">Home</a><a href="guide.html">Guide</a><a href="slides.html">Slides</a>
+      <a href="https://github.com/Violinet-tech/violet-rescue">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div style="display:grid;gap:18px">
+      <span class="eyebrow">Windows repair · from a USB stick</span>
+      <h1>Your PC won't start.<br>Violet Rescue will.</h1>
+      <p class="lead">Boot it from a stick and fix Windows 10 or 11 with big buttons: take out the update that broke startup, undo half-installed updates, rebuild the boot files, put the registry back, and copy your files off first.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/Violinet-tech/violet-rescue/releases">Download 0.1</a>
+        <a class="btn" href="guide.html">Read the guide</a>
+      </div>
+      <div class="facts"><span>Windows 10 and 11</span><span>Runs in the Windows Recovery Environment</span><span>No internet needed</span><span>Asks before every change</span></div>
+    </div>
+    <figure class="shot"><img src="img/fix.png" alt="Violet Rescue's Fix it page: a glass menu on the left and seven numbered repair buttons" width="1280" height="800"><figcaption>The Fix it page: the usual order of repair, one button each.</figcaption></figure>
+  </section>
+
+  <section>
+    <h2>Go down the list</h2>
+    <div class="grid">
+      <div class="glass card first"><span class="num">1</span><h3>Remove the bad update</h3><p class="dim">The most common reason a PC stops starting after Windows Update.</p></div>
+      <div class="glass card"><span class="num">2</span><h3>Undo pending updates</h3><p class="dim">Rolls back updates that were half installed when it broke.</p></div>
+      <div class="glass card"><span class="num">3</span><h3>System Restore</h3><p class="dim">With a safer mode, and Violet snapshots for when System Restore itself fails.</p></div>
+      <div class="glass card"><span class="num">4</span><h3>Fix the boot files</h3><p class="dim">Rebuilds what the PC needs to find Windows.</p></div>
+      <div class="glass card"><span class="num">5</span><h3>Copy my files off</h3><p class="dim">To any other drive, before you try anything bigger.</p></div>
+      <div class="glass card"><span class="num">+</span><h3>Repair tools</h3><p class="dim">SFC, CHKDSK, DISM, drivers, startup items, rollback by date: 21 commands.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>See it</h2>
+    <div class="pair">
+      <figure class="shot"><img src="img/restore.png" alt="Restore points page with a list of registry snapshots" loading="lazy" width="1280" height="800"><figcaption>Restore points: three ways back, each working when the one before fails.</figcaption></figure>
+      <figure class="shot"><img src="img/repair.png" alt="Repair tools page with a grid of commands" loading="lazy" width="1280" height="800"><figcaption>Repair tools: every command as a card.</figcaption></figure>
+      <figure class="shot"><img src="img/drives.png" alt="Drives page choosing the Windows drive and a target drive" loading="lazy" width="1280" height="800"><figcaption>Drives: found by itself, changeable with a tap.</figcaption></figure>
+      <figure class="shot"><img src="img/log.png" alt="Log page with command output" loading="lazy" width="1280" height="800"><figcaption>Log: everything a command printed.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="note"><strong>Early release.</strong> Violet Rescue 0.1 has been booted and used on a real broken PC, but not tested across many machines. Copy your files off before any repair, and read <a href="https://github.com/Violinet-tech/violet-rescue#not-proven-yet-and-things-to-know">what isn't proven yet</a>.</div>
+  </section>
+</main>
+<footer class="wrap">Violet Rescue 0.1 · VIOLINET Tech · <a href="https://github.com/Violinet-tech/violet-rescue">GitHub</a></footer>
+</body>
+</html>

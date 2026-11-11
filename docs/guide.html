@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Violet Rescue Guide</title>
+<meta name="description" content="How to make a Violet Rescue stick, boot a Windows PC that won't start, and repair it step by step.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+  svg text { font-family: "Inter", "Segoe UI", sans-serif; fill: #ece9f7; }
+  svg .sub { fill: #b3acd0; font-size: 12px; }
+  svg .box { fill: rgba(255,255,255,0.06); stroke: rgba(255,255,255,0.28); }
+  svg .first { fill: rgba(138,107,255,0.30); stroke: #8a6bff; }
+  svg .last { fill: rgba(255,178,77,0.10); stroke: #ffb24d; stroke-dasharray: 5 4; }
+  svg .zone { fill: rgba(79,195,255,0.05); stroke: rgba(79,195,255,0.45); stroke-dasharray: 6 5; }
+  svg .wire { stroke: #b3acd0; stroke-width: 2; fill: none; }
+  svg .wire.dash { stroke-dasharray: 6 5; }
+  svg .lbl { fill: #b3acd0; font-size: 12px; }
+</style>
+</head>
+<body>
+<header class="nav wrap">
+  <div class="bar">
+    <a class="brand" href="./"><span class="orb" aria-hidden="true"></span>Violet Rescue</a>
+    <nav class="links" aria-label="Pages">
+      <a href="./">Home</a><a href="guide.html" aria-current="page">Guide</a><a href="slides.html">Slides</a>
+      <a href="https://github.com/Violinet-tech/violet-rescue">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <span class="eyebrow">Guide</span>
+    <h1>Fix a Windows PC that won't start</h1>
+    <p class="dim">You need a second, working Windows 11 PC to make the stick, a USB stick of 8 GB or more, and about twenty minutes.</p>
+    <div class="note"><strong>Copy your files off first.</strong> Any repair of a PC that won't start can go wrong. Button 5 on the Fix it page copies your user folders to another drive before you try anything bigger.</div>
+  </section>
+
+  <section id="make">
+    <h2>1. Make the stick</h2>
+    <ol class="steps">
+      <li>On the working PC, download the release zip from <a href="https://github.com/Violinet-tech/violet-rescue/releases">GitHub releases</a> and unzip it.</li>
+      <li>Install Microsoft's ADK and WinPE add-on: right-click <code>build\get-adk.cmd</code> and run it as administrator.</li>
+      <li>Copy the recovery image: run <code>reagentc /info</code> in an administrator terminal, open the folder it names, and copy the hidden <code>Winre.wim</code> to your user folder as <code>Winre-win11.wim</code>.</li>
+      <li>Plug in the stick and run <code>build\build-media.cmd "%USERPROFILE%\Winre-win11.wim" E:</code> as administrator, with your stick's letter instead of <code>E:</code>. <strong>This erases the stick.</strong></li>
+      <li>Later rebuilds don't need to erase it: <code>build\fix-stick.cmd</code> rebuilds the image and copies it over, checking every file.</li>
+    </ol>
+  </section>
+
+  <section id="boot">
+    <h2>2. Boot the broken PC from it</h2>
+    <ol class="steps">
+      <li>Plug the stick into the broken PC and switch it on. Press the boot menu key (often F8, F11, F12 or Esc) and pick the USB stick.</li>
+      <li>Violet Rescue opens by itself. It finds the drive with Windows on it and shows it top right.</li>
+      <li>Pick a page on the left. Scroll with the wheel, by dragging, or with the arrow keys. Anything that changes the PC asks first: <kbd>Enter</kbd> is yes, <kbd>Esc</kbd> is no.</li>
+    </ol>
+    <figure class="shot"><img src="img/fix.png" alt="The Fix it page with seven numbered repair buttons" loading="lazy" width="1280" height="800"><figcaption>The Fix it page. The glowing button is the one to try first.</figcaption></figure>
+  </section>
+
+  <section id="order">
+    <h2>3. Go down the list</h2>
+    <p class="dim">After each step, shut down, take the stick out and try Windows. Stop as soon as it starts.</p>
+    <div class="glass diagram" role="img" aria-label="Order of repair: copy files off, remove the bad update, undo pending updates, System Restore, fix the boot files, and only then a fresh Windows.">
+      <svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#b3acd0"/></marker></defs>
+        <rect class="box" x="20" y="36" width="210" height="72" rx="18"/>
+        <text x="40" y="66" font-weight="700">PC won't start</text><text class="sub" x="40" y="88">boot loop or error code</text>
+        <rect class="box" x="270" y="36" width="210" height="72" rx="18"/>
+        <text x="290" y="66" font-weight="700">Boot the stick</text><text class="sub" x="290" y="88">it finds Windows itself</text>
+        <rect class="box" x="520" y="36" width="210" height="72" rx="18"/>
+        <text x="540" y="66" font-weight="700">5 · Copy files off</text><text class="sub" x="540" y="88">before anything bigger</text>
+        <rect class="first" x="770" y="36" width="210" height="72" rx="18"/>
+        <text x="790" y="66" font-weight="700">1 · Remove bad update</text><text class="sub" x="790" y="88">the usual cause</text>
+        <path class="wire" d="M230 72 H268" marker-end="url(#ar)"/><path class="wire" d="M480 72 H518" marker-end="url(#ar)"/><path class="wire" d="M730 72 H768" marker-end="url(#ar)"/>
+        <path class="wire" d="M875 108 V196" marker-end="url(#ar)"/><text class="lbl" x="885" y="158">still won't start</text>
+        <rect class="box" x="770" y="198" width="210" height="72" rx="18"/>
+        <text x="790" y="228" font-weight="700">2 · Undo pending</text><text class="sub" x="790" y="250">half-installed updates</text>
+        <rect class="box" x="520" y="198" width="210" height="72" rx="18"/>
+        <text x="540" y="228" font-weight="700">3 · System Restore</text><text class="sub" x="540" y="250">or a Violet snapshot</text>
+        <rect class="box" x="270" y="198" width="210" height="72" rx="18"/>
+        <text x="290" y="228" font-weight="700">4 · Fix boot files</text><text class="sub" x="290" y="250">rebuilds the loader</text>
+        <rect class="last" x="20" y="198" width="210" height="72" rx="18"/>
+        <text x="40" y="228" font-weight="700">Fresh Windows</text><text class="sub" x="40" y="250">last resort, keeps the old</text>
+        <path class="wire" d="M770 234 H732" marker-end="url(#ar)"/><path class="wire" d="M520 234 H482" marker-end="url(#ar)"/><path class="wire" d="M270 234 H232" marker-end="url(#ar)"/>
+      </svg>
+    </div>
+  </section>
+
+  <section id="restore">
+    <h2>4. When System Restore fails</h2>
+    <p>Open <strong>Restore points</strong>. Three ways back, each still working if the one before it fails:</p>
+    <div class="grid">
+      <div class="glass card"><h3>Safer System Restore</h3><p class="dim">Repairs the disk, moves aside the folder restores usually fail on, then runs System Restore.</p></div>
+      <div class="glass card"><h3>Registry from a restore point</h3><p class="dim">Copies the registry out of a restore point. It checks the copy loads before using it.</p></div>
+      <div class="glass card"><h3>Violet snapshots</h3><p class="dim">Your saved registry copies. <em>List snapshots</em>, pick a row, <em>Put selected back</em>. Every put-back saves the current registry first, so it can be undone.</p></div>
+    </div>
+    <figure class="shot"><img src="img/restore.png" alt="The Restore points page with a selectable list of snapshots" loading="lazy" width="1280" height="800"><figcaption>Restore points, with a snapshot selected.</figcaption></figure>
+  </section>
+
+  <section id="stick">
+    <h2>What's on the stick</h2>
+    <div class="glass diagram" role="img" aria-label="The stick boots the Windows Recovery Environment. Rescue.cmd opens the glass window, or the classic window if it cannot start. Both run rescue.ps1, which repairs the PC's Windows drive offline. A helper PC can connect over a cable.">
+      <svg viewBox="0 0 1000 300" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#b3acd0"/></marker></defs>
+        <rect class="zone" x="16" y="16" width="640" height="268" rx="22"/>
+        <text class="lbl" x="34" y="42">USB stick · boots the Windows Recovery Environment</text>
+        <rect class="box" x="36" y="112" width="150" height="64" rx="16"/><text x="54" y="140" font-weight="700">Rescue.cmd</text><text class="sub" x="54" y="160">starts on boot</text>
+        <rect class="first" x="240" y="62" width="180" height="64" rx="16"/><text x="258" y="90" font-weight="700">Glass window</text><text class="sub" x="258" y="110">Rust, drawn on the CPU</text>
+        <rect class="box" x="240" y="168" width="180" height="64" rx="16"/><text x="258" y="196" font-weight="700">Classic window</text><text class="sub" x="258" y="216">PowerShell, all pages</text>
+        <rect class="box" x="470" y="112" width="170" height="64" rx="16"/><text x="488" y="140" font-weight="700">rescue.ps1</text><text class="sub" x="488" y="160">one command per button</text>
+        <path class="wire" d="M186 132 C210 132 214 94 238 94" marker-end="url(#ar2)"/>
+        <path class="wire dash" d="M186 156 C210 156 214 200 238 200" marker-end="url(#ar2)"/>
+        <path class="wire" d="M420 94 C445 94 445 132 468 132" marker-end="url(#ar2)"/>
+        <path class="wire" d="M420 200 C445 200 445 156 468 156" marker-end="url(#ar2)"/>
+        <rect class="box" x="742" y="70" width="240" height="110" rx="18"/>
+        <text x="760" y="100" font-weight="700">The PC's Windows drive</text>
+        <text class="sub" x="760" y="124">updates, drivers, boot files, registry</text>
+        <text class="sub" x="760" y="146">snapshots in \VioletRescue\Snapshots</text>
+        <path class="wire" d="M640 144 H740" marker-end="url(#ar2)"/><text class="lbl" x="646" y="134">repairs offline</text>
+        <rect class="last" x="742" y="210" width="240" height="64" rx="16"/><text x="760" y="238" font-weight="700">Helper PC (optional)</text><text class="sub" x="760" y="258">files, internet, agent help</text>
+        <path class="wire dash" d="M600 176 C600 240 680 242 740 242" marker-end="url(#ar2)"/><text class="lbl" x="560" y="262">Ethernet cable</text>
+      </svg>
+    </div>
+  </section>
+
+  <section id="more">
+    <h2>More</h2>
+    <p>Every command, the limits, and what isn't proven yet are in the <a href="https://github.com/Violinet-tech/violet-rescue#readme">README</a>. Fresh Windows, moving files, NVIDIA drivers and the cable link are in the classic window (Drives page, <em>Open classic window</em>).</p>
+  </section>
+</main>
+<footer class="wrap">Violet Rescue 0.1 · VIOLINET Tech</footer>
+</body>
+</html>
