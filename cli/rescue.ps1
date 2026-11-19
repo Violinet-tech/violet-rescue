@@ -26,7 +26,7 @@ $CliPath    = $PSCommandPath
 function Say($t)  { Write-Output $t }
 function Head($t) { Write-Output ''; Write-Output "=== $t ===" }
 
-foreach ($m in 'common', 'wire', 'newwin', 'migrate', 'nvidia', 'peer', 'agent', 'devconfig', 'restorepoints') { . (Join-Path $PSScriptRoot "modules\$m.ps1") }
+foreach ($m in 'common', 'wire', 'newwin', 'migrate', 'nvidia', 'peer', 'agent', 'devconfig', 'restorepoints', 'fixall', 'ntfsbs', 'bitlocker') { . (Join-Path $PSScriptRoot "modules\$m.ps1") }
 
 # ---------------------------------------------------------------- helpers
 
@@ -106,6 +106,13 @@ function Remove-Update($d, $name) {
 
 function Cmd-Help {
   Say 'Violet Rescue commands:'
+  Say '  fix-everything         (USB) The whole chain: snapshot, boot files, DISM + SFC, System Restore, then newest good snapshot (Option no-restore = stop before step 4)'
+  Say '  ntfs-bootsector        Find a Windows drive that shows as RAW/unreadable and restore its NTFS boot sector from the backup copy (asks first; saves the old sector)'
+  Say '  bitlocker-check        List drives and whether BitLocker has them locked (Option: one drive letter)'
+  Say '  bitlocker-unlock       Unlock a drive. Option "D|<48-digit key>" or "file" (keys in unlock-keys.txt). The key is never shown'
+  Say '  bitlocker-off          Turn BitLocker off for an unlocked drive (Option: drive letter)'
+  Say '  list-disks             Disk numbers, models, sizes and letters'
+  Say '  format-disk            ERASE one disk (Option: disk number) and make one NTFS drive. Refuses the Windows and stick disks'
   Say '  drives                 List every drive and which hold Windows'
   Say '  updates                List installed updates, newest first, known-bad ones flagged'
   Say '  remove-update          Remove one update (Option = package name or KB; empty = newest)'
@@ -517,6 +524,8 @@ function Cmd-Backup {
   $free = (Get-PSDrive $t).Free
   Say ('Copying {0}  ->  {1}   ({2:N1} GB free on {3}:)' -f $src, $dest, ($free / 1GB), $t)
   if (-not (Confirm-Action 'Start the backup? Nothing is deleted from the source.')) { Say 'Cancelled.'; return }
+  # robocopy cannot open its log file inside a folder that does not exist yet, and then copies nothing (code 16).
+  New-Item -ItemType Directory -Path "$($t):\VioletRescueBackup" -Force | Out-Null
   & robocopy.exe $src $dest /E /XJ /R:1 /W:1 /MT:16 /NP /NDL /XD 'AppData\Local\Temp' 'INetCache' 'Temporary Internet Files' /XF 'NTUSER.DAT*' 'UsrClass.dat*' /LOG+:"$($t):\VioletRescueBackup\backup-log.txt" /TEE
   if ($LASTEXITCODE -lt 8) { Say 'Backup finished.' } else { Say "Backup finished with errors (robocopy code $LASTEXITCODE). See backup-log.txt." }
 }
@@ -548,6 +557,7 @@ function Cmd-UpdateDb {
 try {
   switch ($Command.ToLower()) {
     'help'                   { Cmd-Help }
+    'fix-everything'         { Cmd-FixEverything }
     'drives'                 { Cmd-Drives }
     'updates'                { Cmd-Updates }
     'remove-update'          { Cmd-RemoveUpdate }
@@ -560,6 +570,12 @@ try {
     'chkdsk'                 { Cmd-Chkdsk }
     'restorehealth'          { Cmd-RestoreHealth }
     'bootfix'                { Cmd-BootFix }
+    'ntfs-bootsector'        { Cmd-NtfsBootSector }
+    'bitlocker-check'        { Cmd-BitlockerCheck }
+    'bitlocker-unlock'       { Cmd-BitlockerUnlock }
+    'bitlocker-off'          { Cmd-BitlockerOff }
+    'list-disks'             { Cmd-ListDisks }
+    'format-disk'            { Cmd-FormatDisk }
     'drivers'                { Cmd-Drivers }
     'remove-nvidia'          { Cmd-RemoveNvidia }
     'remove-driver'          { Cmd-RemoveDriver }

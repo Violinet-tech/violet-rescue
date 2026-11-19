@@ -3,5 +3,8 @@ ui-rs/target/
 # the built window ships as a release asset, not in the source tree
 gui/*.exe
 *.log
+# BitLocker recovery keys must never be committed
+unlock-keys.txt
+**/unlock-keys.txt
 # drivers are not redistributable; fill drivers/ for your own media
 drivers/*/

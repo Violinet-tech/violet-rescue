@@ -9,22 +9,26 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{channel, Receiver, TryRecvError};
 use tiny_skia::{Color, Pixmap};
 
-const TABS: [(&str, Icon); 5] = [
+const TABS: [(&str, Icon); 6] = [
     ("Fix it", Icon::Spark),
     ("Restore points", Icon::Restore),
     ("Repair tools", Icon::Wrench),
     ("Drives", Icon::Drive),
+    ("BitLocker", Icon::Check),
     ("Log", Icon::Log),
 ];
-const LOG_TAB: usize = 4;
+const LOG_TAB: usize = 5;
+const BITLOCKER_TAB: usize = 4;
 const DRIVES_TAB: usize = 3;
 
 /// Commands that run without a Windows drive (same list as gui\RescueGUI.ps1).
-const NO_DRIVE: [&str; 14] = ["drives", "update-db", "net-up", "nvidia-gpus", "nvidia-driver", "nvidia-versions", "devconfig",
-    "cable-check", "cable-link", "migrate-restore", "rp-fix", "rp-reset", "rp-auto", "rp-make"];
+const NO_DRIVE: [&str; 20] = ["drives", "update-db", "net-up", "nvidia-gpus", "nvidia-driver", "nvidia-versions", "devconfig",
+    "cable-check", "cable-link", "migrate-restore", "rp-fix", "rp-reset", "rp-auto", "rp-make", "ntfs-bootsector",
+    "bitlocker-check", "bitlocker-unlock", "bitlocker-off", "list-disks", "format-disk"];
 
 /// FIX IT: the usual order of repair. (verb, title, what it does, needs target, asks first)
-const FIX: [(&str, &str, &str, bool, bool); 7] = [
+const FIX: [(&str, &str, &str, bool, bool); 8] = [
+    ("ntfs-bootsector", "Repair an unreadable Windows drive", "For a drive that shows as RAW. Restores its NTFS boot sector from the backup copy. Keeps the old one.", false, true),
     ("remove-bad-update", "Remove the bad update", "Try this first. Takes out the newest update that broke startup.", false, true),
     ("revert-pending", "Undo pending updates", "Rolls back updates that were half installed when it broke.", false, true),
     ("restore", "System Restore", "Go back in time to a restore point.", false, true),
@@ -35,7 +39,9 @@ const FIX: [(&str, &str, &str, bool, bool); 7] = [
 ];
 
 /// Repair tools tab: (verb, title, hint for the Option box, needs target, asks first)
-const REPAIR: [(&str, &str, &str, bool, bool); 21] = [
+const REPAIR: [(&str, &str, &str, bool, bool); 23] = [
+    ("list-disks", "List disks (numbers)", "", false, false),
+    ("format-disk", "Erase and format a disk", "Option: disk number from List disks. ERASES the whole disk.", false, true),
     ("drives", "List drives", "", false, false),
     ("updates", "Scan updates", "", false, false),
     ("remove-update", "Remove update", "Option: package name or KB. Empty = newest.", false, true),
@@ -60,7 +66,7 @@ const REPAIR: [(&str, &str, &str, bool, bool); 21] = [
 ];
 
 #[derive(Clone, Copy, PartialEq)]
-enum OnDone { Nothing, Snaps }
+enum OnDone { Nothing, Snaps, AskRestore, Bl }
 
 #[derive(Clone)]
 struct Run { verb: String, option: String, target: bool, confirm: bool, label: String, on_done: OnDone }
@@ -72,7 +78,8 @@ impl Run {
 }
 
 #[derive(Clone)]
-enum Act { Tab(usize), Run(Run), PickWin(char), PickTgt(char), Refresh, Stop, Yes, No, RpDec, RpInc, Snap(usize), SnapBack, Focus, OpenLog, Classic, Block }
+enum Act { Tab(usize), Run(Run), PickWin(char), PickTgt(char), Refresh, Stop, Yes, No, RpDec, RpInc, Snap(usize), SnapBack, Focus, OpenLog, Classic, Block,
+    FocusKey, PickBl(char), BlCheck, BlUnlock, BlUnlockFile, BlOff }
 
 struct Hit { x: f32, y: f32, w: f32, h: f32, act: Act, id: u32 }
 
@@ -85,6 +92,9 @@ pub struct Drive { pub letter: char, pub label: String, pub gb: f64, pub free: f
 
 struct Snap { name: String, made: String, kind: String, size: String }
 
+/// One drive as reported by the bitlocker-check command ("BL|C|Locked, Fully Encrypted, 952 GB").
+struct BlVol { letter: char, state: String }
+
 struct Press { x: f32, y: f32, id: Option<u32>, act: Option<Act>, scroll_tab: Option<usize>, dragging: bool, start_pos: f32, last_y: f32, last_t: f32, vel: f32 }
 
 pub struct App {
@@ -95,12 +105,14 @@ pub struct App {
     hits: Vec<Hit>, next_id: u32,
     mouse: (f32, f32), hover: Option<u32>, press: Option<Press>,
     pub tab: usize, tab_t: f32, sel_y: f32, sel_v: f32,
-    scroll: [Scroll; 5],
+    scroll: [Scroll; 6],
     drives: Vec<Drive>, win: Option<char>, tgt: Option<char>,
     log: Vec<String>, job: Option<Job>, status_until: f32,
     confirm: Option<Run>, toast: Option<(String, f32)>,
     rp_num: u32, snaps: Vec<Snap>, snap_sel: Option<usize>,
     option: String, focus: bool,
+    // BitLocker page: drives from the last check, the picked one, and the typed key (digits only, never logged).
+    bl: Vec<BlVol>, bl_sel: Option<char>, key: String, key_focus: bool,
     follow_log: bool,
 }
 
@@ -126,10 +138,11 @@ impl App {
         let mut a = App {
             w: 1024.0, h: 768.0, s: 1.0, t: 0.0, fonts, cli, demo,
             hits: vec![], next_id: 0, mouse: (-1.0, -1.0), hover: None, press: None,
-            tab: 0, tab_t: 1.0, sel_y: 0.0, sel_v: 0.0, scroll: [Scroll::default(); 5],
+            tab: 0, tab_t: 1.0, sel_y: 0.0, sel_v: 0.0, scroll: [Scroll::default(); 6],
             drives: vec![], win: None, tgt: None, log: vec![], job: None, status_until: -1.0,
             confirm: None, toast: None, rp_num: 1, snaps: vec![], snap_sel: None,
             option: String::new(), focus: false, follow_log: true,
+            bl: vec![], bl_sel: None, key: String::new(), key_focus: false,
         };
         a.log.push("Violet Rescue. Pick a page on the left, then a button. Anything that changes the PC asks first.".into());
         if !a.cli.exists() { a.log.push(format!("Could not find cli\\rescue.ps1 (looked near {}).", exe_dir.display())); }
@@ -215,6 +228,21 @@ impl App {
     }
 
     fn confirm_text(&self, r: &Run) -> String {
+        // Never show a recovery key in the dialog.
+        if r.verb == "bitlocker-unlock" {
+            return if r.option == "file" {
+                "Try every recovery key in unlock-keys.txt (on the stick) on each locked drive.".to_string()
+            } else {
+                format!("Unlock {}: with the key you typed (hidden). Nothing on the drive is changed.", r.option.chars().next().unwrap_or('?'))
+            };
+        }
+        if r.verb == "fix-everything" {
+            let on = self.win.map(|w| format!(" on {w}:")).unwrap_or_default();
+            if r.option == "restore-only" {
+                return format!("Step 4{on}: open System Restore. If it changes nothing, put back the newest good registry snapshot.\nSteps 1 to 3 are done (see the log).");
+            }
+            return format!("Fix Everything, steps 1 to 3{on}.\n1. Save the registry and the boot configuration.\n2. Rebuild the boot files.\n3. DISM and SFC repair.\nYou are asked again before step 4, System Restore.\nThis can take 30 minutes or more. Your files are not touched.");
+        }
         let mut m = format!("Run \"{}\"", r.label);
         if let Some(w) = self.win { if !NO_DRIVE.contains(&r.verb.as_str()) { m += &format!(" on {w}:"); } }
         if r.target { if let Some(t) = self.tgt { m += &format!(" and write to {t}:"); } }
@@ -233,7 +261,10 @@ impl App {
         #[cfg(windows)]
         { use std::os::windows::process::CommandExt; cmd.creation_flags(0x0800_0000); } // no console window
         self.log.push(String::new());
-        self.log.push(format!("> {} {}", r.verb, r.option));
+        // A recovery key must never reach the log; forget the typed key once it has been handed over.
+        let shown = if r.verb == "bitlocker-unlock" { "(key hidden)".to_string() } else { r.option.clone() };
+        self.log.push(format!("> {} {}", r.verb, shown));
+        if r.verb == "bitlocker-unlock" { self.key.clear(); }
         self.follow_log = true;
         match cmd.spawn() {
             Ok(mut child) => {
@@ -292,6 +323,28 @@ impl App {
                 }
                 if self.snaps.is_empty() { self.toast("No snapshots found on this Windows drive."); }
             }
+            if j.on_done == OnDone::Bl {
+                self.bl.clear();
+                for l in &j.out {
+                    if let Some(rest) = l.strip_prefix("BL|") {
+                        let p: Vec<&str> = rest.split('|').collect();
+                        if let Some(c) = p.first().and_then(|s| s.trim().chars().next()) {
+                            let st = p.get(1).map(|s| s.trim().to_string()).unwrap_or_default();
+                            self.bl.push(BlVol { letter: c, state: st });
+                        }
+                    }
+                }
+                if self.bl.is_empty() {
+                    self.toast("No BitLocker drives were listed. See the Log.");
+                } else {
+                    let keep = self.bl_sel.map_or(false, |s| self.bl.iter().any(|v| v.letter == s));
+                    if !keep { self.bl_sel = Some(self.bl[0].letter); }
+                }
+            }
+            // Fix Everything runs steps 1 to 3 first; step 4 goes back in time, so it is asked separately.
+            if j.on_done == OnDone::AskRestore && j.out.iter().any(|l| l.contains("Fix Everything: what happened")) {
+                self.confirm = Some(Run::new("fix-everything", "restore-only", false, true, "Fix Everything, step 4"));
+            }
             let _ = j.label;
         }
         if self.log.len() > 6000 { self.log.drain(0..1000); }
@@ -299,6 +352,7 @@ impl App {
 
     fn act(&mut self, a: Act) {
         self.focus = matches!(a, Act::Focus);
+        self.key_focus = matches!(a, Act::FocusKey);
         match a {
             Act::Tab(i) => { if i != self.tab { self.tab = i; self.tab_t = 0.0; } }
             Act::Run(r) => self.start(r),
@@ -328,7 +382,32 @@ impl App {
                 if started { self.toast("Opening the classic window..."); } else { self.toast("Could not find gui\\RescueGUI.ps1."); }
             }
             Act::Block => {}
+            Act::FocusKey => {}
+            Act::PickBl(l) => { self.bl_sel = Some(l); }
+            Act::BlCheck => self.start(Run { on_done: OnDone::Bl, ..Run::new("bitlocker-check", "", false, false, "Check BitLocker") }),
+            Act::BlUnlock => {
+                let sel = self.bl_sel;
+                match sel {
+                    Some(l) if self.key.len() == 48 => {
+                        let dashed = self.key_dashed();
+                        let opt = format!("{}|{}", l, dashed);
+                        self.start(Run::new("bitlocker-unlock", &opt, false, true, &format!("Unlock {l}:")));
+                    }
+                    Some(_) => self.toast("Type all 48 digits of the key first."),
+                    None => self.toast("Press Check BitLocker, then pick a drive."),
+                }
+            }
+            Act::BlUnlockFile => self.start(Run::new("bitlocker-unlock", "file", false, true, "Unlock with unlock-keys.txt")),
+            Act::BlOff => match self.bl_sel {
+                Some(l) => self.start(Run::new("bitlocker-off", &l.to_string(), false, true, &format!("Remove BitLocker from {l}:"))),
+                None => self.toast("Press Check BitLocker, then pick a drive."),
+            },
         }
+    }
+
+    /// The typed digits as a dashed recovery key: six digits, a dash, and so on.
+    fn key_dashed(&self) -> String {
+        self.key.as_bytes().chunks(6).map(|c| String::from_utf8_lossy(c).to_string()).collect::<Vec<_>>().join("-")
     }
 
     // ------------------------------------------------------------ input
@@ -390,7 +469,7 @@ impl App {
             let now = self.hit_at(x, y).map(|h| h.id);
             match (p.act, now) {
                 (Some(a), Some(n)) if Some(n) == p.id => self.act(a),
-                _ => { self.focus = false; }
+                _ => { self.focus = false; self.key_focus = false; }
             }
         }
     }
@@ -405,6 +484,15 @@ impl App {
     }
 
     pub fn key_char(&mut self, c: char) {
+        if self.key_focus {
+            match c {
+                '\u{8}' => { self.key.pop(); }
+                '\r' | '\n' | '\u{1b}' => { self.key_focus = false; }
+                c if c.is_ascii_digit() && self.key.len() < 48 => self.key.push(c),
+                _ => {} // dashes and spaces are ignored; they are added for you
+            }
+            return;
+        }
         if !self.focus { return; }
         match c {
             '\u{8}' => { self.option.pop(); }
@@ -422,12 +510,12 @@ impl App {
             match vk { VK_RETURN => self.act(Act::Yes), VK_ESCAPE => self.act(Act::No), _ => {} }
             return false;
         }
-        if self.focus { return false; }
+        if self.focus || self.key_focus { return false; }
         match vk {
             VK_UP => self.wheel(0.6), VK_DOWN => self.wheel(-0.6),
             VK_PRIOR => self.wheel(3.0), VK_NEXT => self.wheel(-3.0),
             VK_TAB => self.act(Act::Tab((self.tab + 1) % TABS.len())),
-            0x31..=0x35 => self.act(Act::Tab((vk - 0x31) as usize)),
+            0x31..=0x36 => self.act(Act::Tab((vk - 0x31) as usize)),
             _ => {}
         }
         false
@@ -775,9 +863,14 @@ impl App {
         let mut y = y0;
         match tab {
             0 => {
-                y += self.section(pm, x, y, w, "Go down the list", "The glowing one is the one to try first. Each one asks before it changes anything.");
+                y += self.section(pm, x, y, w, "Fix Everything", "The whole chain in one go: snapshot, boot files, DISM and SFC, System Restore, then the newest good registry snapshot.");
+                let all = vec![(None, "Fix Everything".to_string(),
+                    "Saves the registry and boot configuration first, rebuilds the boot files, runs DISM and SFC, then asks you before opening System Restore. If that changes nothing, puts back the newest good snapshot. Can take 30 minutes or more. Your files are not touched.".to_string(),
+                    Act::Run(Run { on_done: OnDone::AskRestore, ..Run::new("fix-everything", "no-restore", false, true, "Fix Everything") }), true)];
+                y += self.tiles(pm, x, y, w, all, w / s);
+                y += self.section(pm, x, y, w, "Or one step at a time", "Go down the list. Each one asks before it changes anything.");
                 let items = FIX.iter().enumerate().map(|(i, f)| (Some((i + 1).to_string()), f.1.to_string(), f.2.to_string(),
-                    Act::Run(Run::new(f.0, "", f.3, f.4, f.1)), i == 0)).collect();
+                    Act::Run(Run::new(f.0, "", f.3, f.4, f.1)), false)).collect();
                 y += self.tiles(pm, x, y, w, items, 330.0);
             }
             1 => {
@@ -833,6 +926,27 @@ impl App {
                 y += self.pills(pm, x, y, w, vec![("Refresh drives".into(), Some(Icon::Refresh), Act::Refresh, 1)]) + 18.0 * s;
                 y += self.section(pm, x, y, w, "More tools", "Fresh Windows, moving files, NVIDIA drivers, cable link and agent help are in the classic window for now.");
                 y += self.pills(pm, x, y, w, vec![("Open classic window".into(), None, Act::Classic, 0)]);
+            }
+            BITLOCKER_TAB => {
+                y += self.section(pm, x, y, w, "BitLocker drives", "Windows 11 often turns this on by itself. A locked drive looks unreadable until it is unlocked with its 48-digit recovery key (account.microsoft.com/devices/recoverykey). Press Check BitLocker, pick a drive, then use a button.");
+                let sel = self.bl_sel;
+                let chips: Vec<(String, Option<Icon>, Act, u8)> = self.bl.iter()
+                    .map(|v| (format!("{}:  {}", v.letter, v.state), Some(Icon::Drive), Act::PickBl(v.letter), if sel == Some(v.letter) { 3u8 } else { 0u8 }))
+                    .collect();
+                if chips.is_empty() {
+                    y += self.section(pm, x, y, w, "", "No drives listed yet. Press Check BitLocker.");
+                } else {
+                    y += self.pills(pm, x, y, w, chips) + 10.0 * s;
+                }
+                y += self.pills(pm, x, y, w, vec![("Check BitLocker".into(), Some(Icon::Refresh), Act::BlCheck, 1)]) + 14.0 * s;
+                y += self.section(pm, x, y, w, "Recovery key", "Type the 48 digits. Dashes are added for you. It is hidden on screen, never written to the Log, and cleared once it is used.");
+                y += self.key_field(pm, x, y, w) + 16.0 * s;
+                y += self.pills(pm, x, y, w, vec![
+                    ("Unlock the selected drive".into(), Some(Icon::Check), Act::BlUnlock, 1),
+                    ("Unlock with unlock-keys.txt".into(), None, Act::BlUnlockFile, 0),
+                ]) + 8.0 * s;
+                y += self.section(pm, x, y, w, "Remove BitLocker", "Turns encryption off for the selected drive. The drive must be unlocked first. It can take hours, so it is best done from inside Windows.");
+                y += self.pills(pm, x, y, w, vec![("Remove BitLocker from the selected drive".into(), None, Act::BlOff, 2)]);
             }
             _ => {}
         }
@@ -895,6 +1009,31 @@ impl App {
             if self.focus && (self.t * 2.0).fract() < 0.6 {
                 gfx::fill(pm, &gfx::rrect(x + 26.0 * s + tw, y + 15.0 * s, 2.0 * s, h - 30.0 * s, 1.0), col(WHITE, 0.9));
             }
+        }
+        h
+    }
+
+    /// Text box for the recovery key. Shows only asterisks, grouped like the real key.
+    fn key_field(&mut self, pm: &mut Pixmap, x: f32, y: f32, w: f32) -> f32 {
+        let s = self.s;
+        let h = 54.0 * s;
+        let (_, hov) = self.hit(x, y, w, h, Act::FocusKey);
+        if !self.visible(y, h) { return h; }
+        let tint: Rgba = if self.key_focus { [0.54, 0.42, 1.0, 0.28] } else { [0.05, 0.04, 0.10, 0.40] };
+        gfx::glass(pm, x, y, w, h, h / 2.0, s, &Glass { lens: 8.0 * s, saturate: 1.3, bright: 0.8, tint }, hov * 0.5, None);
+        let ty = y + h / 2.0 - 11.0 * s;
+        if self.key.is_empty() && !self.key_focus {
+            self.fonts.draw(pm, x + 24.0 * s, ty, "Click here and type the 48-digit recovery key", 16.0 * s, Face::Regular, [1., 1., 1., 0.45]);
+        } else {
+            let groups: Vec<String> = self.key.as_bytes().chunks(6).map(|c| "*".repeat(c.len())).collect();
+            let masked = groups.join("-");
+            let tw = self.fonts.draw(pm, x + 24.0 * s, ty, &masked, 16.0 * s, Face::Regular, WHITE);
+            if self.key_focus && (self.t * 2.0).fract() < 0.6 {
+                gfx::fill(pm, &gfx::rrect(x + 26.0 * s + tw, y + 15.0 * s, 2.0 * s, h - 30.0 * s, 1.0), col(WHITE, 0.9));
+            }
+            let count = format!("{} of 48", self.key.len());
+            let cw = self.fonts.measure(&count, 14.0 * s, Face::Regular);
+            self.fonts.draw(pm, x + w - 26.0 * s - cw, ty + 1.0 * s, &count, 14.0 * s, Face::Regular, DIM);
         }
         h
     }

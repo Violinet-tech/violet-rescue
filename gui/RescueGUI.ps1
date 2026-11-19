@@ -18,6 +18,12 @@ $RepairCommands = @(
   @('restore',                'System Restore',         '', $false, $true),
   @('sfc',                    'SFC scan',               '', $false, $false),
   @('chkdsk',                 'Check disk',             '', $false, $true),
+  @('ntfs-bootsector',        'Repair unreadable drive', '', $false, $true),
+  @('bitlocker-check',        'Check BitLocker',        'Optional: one drive letter, like C', $false, $false),
+  @('bitlocker-unlock',       'Unlock BitLocker drive', 'Option: file  (keys in unlock-keys.txt)  or  D|123456-...-888888', $false, $true),
+  @('bitlocker-off',          'Remove BitLocker',       'Option: drive letter, like D (drive must be unlocked)', $false, $true),
+  @('list-disks',             'List disks (numbers)',   '', $false, $false),
+  @('format-disk',            'Erase and format a disk', 'Option: disk number from List disks. ERASES the disk.', $false, $true),
   @('restorehealth',          'DISM repair',            'Optional: path to install.wim or .esd, add :index', $false, $true),
   @('bootfix',                'Fix boot files',         '', $false, $true),
   @('drivers',                'List drivers',           'Optional filter, like Realtek', $false, $false),
@@ -32,7 +38,7 @@ $RepairCommands = @(
   @('net-up',                 'Start network',          '', $false, $false),
   @('update-db',              'Update database',        '', $false, $false)
 )
-$NoDriveNeeded = 'drives', 'update-db', 'net-up', 'nvidia-gpus', 'nvidia-driver', 'nvidia-versions', 'devconfig', 'cable-check', 'cable-link', 'migrate-restore', 'rp-fix', 'rp-reset', 'rp-auto', 'rp-make'
+$NoDriveNeeded = 'drives', 'update-db', 'net-up', 'nvidia-gpus', 'nvidia-driver', 'nvidia-versions', 'devconfig', 'cable-check', 'cable-link', 'migrate-restore', 'rp-fix', 'rp-reset', 'rp-auto', 'rp-make', 'ntfs-bootsector', 'bitlocker-check', 'bitlocker-unlock', 'bitlocker-off', 'list-disks', 'format-disk'
 
 $script:winDrive = $null; $script:target = $null; $script:cmd = $null
 $script:proc = $null; $script:onDone = $null; $script:fullOut = ''
@@ -181,7 +187,7 @@ function Start-Rescue($verb, $option, [bool]$needsTarget, [bool]$confirm, $label
   if ($needsTarget -and -not $script:target) { Set-AutoTarget }
   if ($needsTarget -and -not $script:target) { [Windows.Forms.MessageBox]::Show('Pick a target drive first (second row).') | Out-Null; return }
   if ($confirm) {
-    $msg = "Run '$label'"; if ($script:winDrive) { $msg += " on $($script:winDrive):" }; if ($needsTarget) { $msg += " -> $($script:target):" }
+    $msg = if ($label -match "`n") { "$label`n`nRun all of this" } else { "Run '$label'" }; if ($script:winDrive) { $msg += " on $($script:winDrive):" }; if ($needsTarget) { $msg += " -> $($script:target):" }
     if ($option) { $msg += "`nOption: $option" }
     if ([Windows.Forms.MessageBox]::Show("$msg ?", 'Confirm', 'YesNo', 'Warning') -ne 'Yes') { return }
   }
@@ -227,8 +233,25 @@ function Fill-Drives {
 
 # ---- FIX IT tab: big buttons for the usual order of repair, one click each
 $fixPanel = New-Flow $tFix 0 0 100 100; $fixPanel.Dock = 'Fill'
-$fixIntro = New-Label $fixPanel 'Go down the list. Green is the one to try first. Each one asks before it changes anything.' 0 0 $false
+$fixIntro = New-Label $fixPanel 'Fix Everything runs the whole chain in one go. Or go down the list one step at a time: green is the one to try first. Each one asks before it changes anything.' 0 0 $false
 $fixPanel.SetFlowBreak($fixIntro, $true)
+# One big button: snapshot, boot files, DISM + SFC, System Restore, then the newest good registry snapshot (cli\modules\fixall.ps1)
+$fixAllText = "FIX EVERYTHING`n1  Save the registry and the boot configuration`n2  Rebuild the boot files`n3  DISM and SFC repair`n4  Asks you, then System Restore (a window opens), then the newest good snapshot if the registry did not change`nThis can take 30 minutes or more. Your files are not touched."
+$fixAll = New-Btn $fixAllText 'fixall' ([int][Math]::Max(300, $script:labW - 40)) $on
+$fixAll.MinimumSize = New-Object Drawing.Size([int][Math]::Max(300, $script:labW - 40), 130); $fixAll.Font = New-Object Drawing.Font('Segoe UI', 12, [Drawing.FontStyle]::Bold)
+$fixAll.TextAlign = 'MiddleLeft'; $fixAll.Padding = New-Object Windows.Forms.Padding(16, 6, 16, 6)
+# Steps 1 to 3 run first (Option no-restore). Step 4 is the one that goes back in time, so it is asked separately,
+# when 1 to 3 are done, and runs as a second call (Option restore-only).
+$fixAll.Add_Click({
+  Start-Rescue 'fix-everything' 'no-restore' $false $true "Fix Everything, steps 1 to 3:`n1  Save the registry and the boot configuration`n2  Rebuild the boot files`n3  DISM and SFC repair`nThen you are asked before step 4, System Restore." {
+    param($out)
+    if ($out -notmatch 'Fix Everything: what happened') { return }
+    $q = "Steps 1 to 3 are done (see the summary in the log).`n`nStep 4: open System Restore. If it changes nothing, put back the newest good registry snapshot.`n`nGo on?"
+    if ([Windows.Forms.MessageBox]::Show($q, 'Fix Everything', 'YesNo', 'Question') -eq 'Yes') { Start-Rescue 'fix-everything' 'restore-only' $false $false 'Fix Everything, step 4' }
+  }
+})
+$fixPanel.Controls.Add($fixAll)
+$fixPanel.SetFlowBreak($fixAll, $true)
 $fixDefs = @(
   @('1   Remove the bad update (try this first)', 'remove-bad-update', $false, $true),
   @('2   Undo pending updates',                   'revert-pending',    $false, $true),

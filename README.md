@@ -1,5 +1,7 @@
 # Violet Rescue
 
+![Violet Rescue](docs/img/violet-rescue-hero.png)
+
 A boot-time repair app for Windows 10 and 11 PCs that won't start. Boot it from a USB stick and fix
 the PC with big buttons: remove the update that broke startup, undo half-installed updates, rebuild the
 boot files, put a saved copy of the registry back, copy your files off, and run offline SFC, CHKDSK and DISM.
@@ -11,7 +13,7 @@ boot files, put a saved copy of the registry back, copy your files off, and run 
 > whatever tool you use. **Copy your files off first** (button 5 on the Fix it page), and read
 > [what is not proven yet](#not-proven-yet-and-things-to-know) before you rely on it.
 
-**Guides and slides:** <https://violinet-tech.github.io/violet-rescue/>
+**Guides and slides:** <https://violinet-tech.github.io/violet-rescue/> · [slides](docs/slides.html) · [guide](docs/guide.html)
 
 ## How it works
 
@@ -47,15 +49,76 @@ boot files, put a saved copy of the registry back, copy your files off, and run 
 | Check disk | `chkdsk` | `chkdsk /f /x` |
 | DISM repair | `restorehealth` | Finds install media, matches the edition index and runs `/restorehealth` |
 | Fix boot files | `bootfix` | Finds the EFI partition on the Windows disk. Formats it FAT32 only if it isn't already, after asking. Then backs up the old BCD and runs `bcdboot` |
+| **Fix Everything** | `fix-everything` | The whole chain in one run, see the next section |
 | List drivers / Remove driver | `drivers`, `remove-driver` | Lists and removes third-party drivers by `oemNN.inf` or Provider,Class |
 | Remove NVIDIA display | `remove-nvidia` | Removes NVIDIA display drivers (`all` removes every NVIDIA driver) |
 | Install drivers | `add-drivers` | Installs `drivers/nvidia`, `realtek`, `amd-chipset` or any folder |
 | Block / Allow Windows drivers | `block-driver-updates` | Offline policy `ExcludeWUDriversInQualityUpdate` + `SearchOrderConfig` |
 | Malware startup scan | `malware-scan` | Lists Run keys (machine and every user) and services, and flags unsigned files, files in user-writable folders and script tricks |
 | Disable startup item | `disable-startup` | Moves the entry to a `RescueDisabled` key, so it can be put back |
+| Check BitLocker | `bitlocker-check` | Lists every drive and whether BitLocker has it locked. Prints one machine-readable line per drive for the window |
+| Unlock BitLocker drive | `bitlocker-unlock` | Option: the drive letter, a bar, then the 48-digit key (like `D\|123456-...-888888`), or `file` to try every key in `unlock-keys.txt`. The key is never printed or logged |
+| Remove BitLocker | `bitlocker-off` | Turns encryption off for an unlocked drive (runs in the background, can take hours) |
+| Repair unreadable drive | `ntfs-bootsector` | Finds a partition whose NTFS boot sector is damaged and restores it from the backup copy at the end of the volume. Skips drives Windows reads fine |
+| List disks / Erase and format | `list-disks`, `format-disk` | Disk numbers and sizes; `format-disk` ERASES one disk (refuses the Windows disk, boot disk and USB drives) |
 | Backup files | `backup` | Copies the Users folders (or another folder) to any other drive with robocopy, and writes a log |
 | Start network | `net-up` | Loads the Realtek drivers and starts wired networking |
 | Update database | `update-db` | Downloads a new `known-bad.json` from the URL in `db/source.json` |
+
+## Fix Everything (the big button on "Fix it")
+
+`fix-everything` runs the usual repair order in one go, from the USB, on a Windows that will not start. It asks once.
+When a step fails it goes on to the next, and a summary at the end lists each step as ok, skipped or failed.
+
+1. **Snapshot first.** A Violet snapshot of every registry hive, plus a copy of the boot configuration (BCD) into
+   `<snapshot>\bcd`. If the registry cannot be saved, the run stops and nothing has changed.
+2. **Rebuild the boot files.** The old BCD is kept as `BCD.bak`, then `bcdboot` writes a new one. On BIOS/MBR disks
+   `bootrec /fixmbr` and `/fixboot` run first. If `bcdboot` makes no BCD, `bootrec /rebuildbcd` is tried. `bootrec /scanos`
+   then checks the result (read only). It never formats the EFI partition; if that is not FAT32 the step is skipped
+   and **Fix boot files** (which asks) is the way to do it.
+3. **DISM, then SFC, both offline.** DISM goes first because SFC takes its good copies from the component store DISM
+   repairs. DISM needs Windows install media (`install.wim` or `install.esd`); without it that part is skipped.
+4. **System Restore, then a snapshot, only after you say yes.** Steps 1 to 3 run first, then both windows ask
+   before this one, because it goes back in time (the GUI runs it as a second call, Option `restore-only`; at a
+   keyboard the CLI asks itself). It runs the Safer System Restore route (a window opens and you pick the
+   point). If System Restore could not run, or closes and leaves SYSTEM and SOFTWARE as they were, the newest *good*
+   Violet snapshot is put back. Good means: made inside a working Windows (not from the USB), the same Windows build as
+   now, and its SYSTEM and SOFTWARE files load. The snapshot taken in step 1 is never used for this, because it holds
+   the broken state.
+
+Undo for the registry: `snap-restore -Option <the snapshot named at the end>`. Option `no-restore` stops after step 3, and `restore-only` runs step 4 alone.
+It does not touch user files; back them up first anyway (**Backup files**).
+
+Not proven yet: it has not been run end to end on a real broken PC or in the rescue USB. Two guesses in it need
+that test: that a finished offline System Restore replaces the SYSTEM and SOFTWARE files (that is how a failed or
+cancelled one is told apart), and that `bootrec /rebuildbcd` accepts its answer from a pipe.
+
+## BitLocker (tab "BitLocker")
+
+Windows 11 often turns on device encryption by itself and saves the recovery key to the user's Microsoft account
+(account.microsoft.com/devices/recoverykey). A change such as plugging in another drive can lock the drive until the
+key is entered. **To a repair stick, a locked drive looks broken**: its file system shows as Unknown, the drive is
+"not ready", chkdsk and the repairs cannot read it, and no Windows is found. This was the real cause on one PC, and it
+cost days of repairs that could never have worked. **Check BitLocker first** when no Windows drive is found.
+
+- **Check BitLocker** lists each drive with its state (locked or unlocked, encrypted or not). Each drive is a button.
+- **Recovery key** is a hidden box (asterisks only). Type the 48 digits; dashes are added for you. The key is never
+  shown in a dialog, never written to the log, and cleared once it is used.
+- **Unlock the selected drive**, or **Unlock with unlock-keys.txt** (one key per line on the top level of the stick;
+  other text around the keys is ignored). The unlock lasts until the next restart. It does not remove the encryption.
+- **Remove BitLocker from the selected drive** turns encryption off. The drive must be unlocked first. It runs in the
+  background and can take hours, so it is best done from inside Windows (`tools\decrypt-drives.ps1` does it for C: and D:).
+- **Never put recovery keys in this repository, in a release or on a stick you give away.** `unlock-keys.txt` is in `.gitignore`.
+
+After unlocking: press Refresh drives on the Drives page, copy your files off, then run **Fix the boot files**.
+
+## Windows tools (`tools/`)
+
+Plain PowerShell scripts for use inside a running Windows, from an administrator PowerShell:
+
+- `tools\decrypt-drives.ps1 [-Drives C,D]`: turns BitLocker off for the named drives.
+- `tools\format-disk.ps1 [-Label Data] [-AllowUsb]`: lists disks, asks for a disk number, and erases it only after you type
+  `ERASE` and the number again. Refuses the Windows disk, any disk holding C:, and USB drives.
 
 ## Restore points (tab "Restore points")
 
@@ -192,8 +255,17 @@ To build only the glass window: `build\build-ui.cmd` (needs the Rust toolchain).
 - **Registry from restore point** (`rp-shadow-restore`) once put back registry files that would not load, and the PC
   then failed with 0xc000014c. It now checks that the copied files load before using them, and every put-back saves the
   current registry first, so **Violet snapshots** (`snap-restore`) can undo it. Prefer a Violet snapshot when you have one.
-- **The glass window** (`gui/VioletRescueUI.exe`) was tested on a desktop, at four screen sizes and with a real command.
-  It has not yet been run inside WinRE on a real stick. If it can't start, `Rescue.cmd` opens the classic window.
+- **The glass window** (`gui/VioletRescueUI.exe`) was tested on a desktop, at four screen sizes and with a real command,
+  and it has now been run inside WinRE on a real stick: it fixed a second PC that would not boot, by restoring the
+  registry from four days earlier. If it can't start, `Rescue.cmd` opens the classic window.
+- **BitLocker page, `ntfs-bootsector`, `format-disk` and the tools scripts are written but only partly proven.** Unlocking a
+  BitLocker drive with a recovery key from the rescue command prompt worked on a real PC (`manage-bde -unlock`), and so
+  did **Fix the boot files** afterwards. The window's BitLocker page, the hidden key box, `bitlocker-off`,
+  `ntfs-bootsector` (never found a drive to repair on the real PC, because the cause was BitLocker) and `format-disk`
+  have not been run inside WinRE. `ntfs-bootsector` also needs Windows to allow a raw write to the disk.
+- **The "Fix everything" button and the backup folder fix are built but not yet run.** The Rust window compiles with
+  the button, and `backup` now creates `VioletRescueBackup` before copying. Neither has run inside WinRE yet.
+  The stick must be rebuilt with `build\fix-stick.cmd` to carry them.
 - **Update database**: there's no hosted list yet (`db/source.json` url is empty). Microsoft publishes no official
   machine-readable feed of bad updates, so this list is maintained by hand. Its one entry is a suspected update
   that Microsoft hasn't confirmed.

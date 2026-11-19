@@ -7,11 +7,17 @@ if errorlevel 1 (
   powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
   exit /b
 )
+rem Close windows left over from an earlier run of this script or build-media.cmd (one may be stuck on a question),
+rem and drop any half-mounted image, so they cannot block this run.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0stop-stale.ps1" >nul 2>&1
+dism /cleanup-wim >nul 2>&1
 title Violet Rescue - rebuilding and writing the stick. Do not unplug it.
 rem The Winre.wim copied from a working Windows 11 (see README). Pass another path as the first argument.
 set "WIM=%~1"
 if "%WIM%"=="" set "WIM=%USERPROFILE%\Winre-win11.wim"
 if not exist "%WIM%" ( echo Missing %WIM% & pause & exit /b 1 )
+rem An old ISO makes the build ask "overwrite it [Y,N]?" with its output sent to the log, so the window looks frozen.
+if exist "%USERPROFILE%\violet-rescue-win11.iso" del /f /q "%USERPROFILE%\violet-rescue-win11.iso"
 echo Step 1 of 2: building the image. A few minutes.
 call "%~dp0build-media.cmd" "%WIM%" "%USERPROFILE%\violet-rescue-win11.iso" > "%USERPROFILE%\fix-stick-build.log" 2>&1
 if errorlevel 1 ( echo BUILD FAILED. See %USERPROFILE%\fix-stick-build.log & pause & exit /b 1 )

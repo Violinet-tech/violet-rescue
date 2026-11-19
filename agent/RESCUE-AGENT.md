@@ -24,7 +24,7 @@ the CBS log and SrtTrail. Read it first.
 
 | Look only (run freely) | Changes things (ask first) |
 |---|---|
-| `help`, `drives`, `updates`, `drivers`, `malware-scan`, `cable-check`, `nvidia-gpus`, `nvidia-versions`, `migrate-list`, `rp-check`, `snap-list` | `remove-update`, `remove-bad-update`, `clear-pending`, `revert-pending`, `rollback`, `restore`, `restore-safe`, `rp-shadow-restore`, `sfc`, `chkdsk`, `restorehealth`, `bootfix`, `remove-nvidia`, `remove-driver`, `add-drivers`, `block-driver-updates`, `unblock-driver-updates`, `disable-startup`, `backup`, `new-windows`, `migrate-pack`, `migrate-restore`, `snap-restore`, `rp-fix`, `rp-reset`, `rp-auto`, `rp-make`, `nvidia-driver`, `net-up`, `update-db`, `cable-link` |
+| `help`, `drives`, `updates`, `drivers`, `malware-scan`, `cable-check`, `nvidia-gpus`, `nvidia-versions`, `migrate-list`, `rp-check`, `snap-list` | `remove-update`, `remove-bad-update`, `clear-pending`, `revert-pending`, `rollback`, `restore`, `restore-safe`, `rp-shadow-restore`, `sfc`, `chkdsk`, `restorehealth`, `bootfix`, `fix-everything`, `remove-nvidia`, `remove-driver`, `add-drivers`, `block-driver-updates`, `unblock-driver-updates`, `disable-startup`, `backup`, `new-windows`, `migrate-pack`, `migrate-restore`, `snap-restore`, `rp-fix`, `rp-reset`, `rp-auto`, `rp-make`, `nvidia-driver`, `net-up`, `update-db`, `cable-link` |
 
 Two commands only add files and never alter Windows, so run them freely and tell the user where the files went:
 `support-bundle` (writes a `RescueBundle` folder) and `snap-make` (saves a registry snapshot under

@@ -17,6 +17,8 @@ set "BASE=%~1"
 set "OUT=%~2"
 set "ROOT=%~dp0.."
 set "WORK=%TEMP%\violet-rescue-build"
+set "DISMLOG=%USERPROFILE%\violet-dism.log"
+if exist "%DISMLOG%" del /f /q "%DISMLOG%"
 set "ADK=%ProgramFiles(x86)%\Windows Kits\10\Assessment and Deployment Kit"
 set "OCS=%ADK%\Windows Preinstallation Environment\amd64\WinPE_OCs"
 
@@ -40,13 +42,23 @@ dism /mount-image /imagefile:"%WORK%\media\sources\boot.wim" /index:1 /mountdir:
 
 echo Adding PowerShell, .NET, WMI, storage and DISM cmdlets...
 for %%P in (WinPE-WMI WinPE-NetFx WinPE-Scripting WinPE-PowerShell WinPE-StorageWMI WinPE-DismCmdlets WinPE-SecureStartup) do (
-  dism /image:"%WORK%\mount" /add-package /packagepath:"%OCS%\%%P.cab" >nul
+  dism /image:"%WORK%\mount" /add-package /packagepath:"%OCS%\%%P.cab" >>"%DISMLOG%" 2>&1
   if errorlevel 1 (echo   %%P: already there or failed) else (echo   %%P added)
-  if exist "%OCS%\en-us\%%P_en-us.cab" dism /image:"%WORK%\mount" /add-package /packagepath:"%OCS%\en-us\%%P_en-us.cab" >nul
+  if exist "%OCS%\en-us\%%P_en-us.cab" dism /image:"%WORK%\mount" /add-package /packagepath:"%OCS%\en-us\%%P_en-us.cab" >>"%DISMLOG%" 2>&1
+)
+
+rem A stick without PowerShell cannot run a single repair, so stop here instead of writing one.
+dism /image:"%WORK%\mount" /get-packages 2>>"%DISMLOG%" | find /i "WinPE-PowerShell-Package" >nul
+if errorlevel 1 (
+  echo.
+  echo POWERSHELL IS NOT IN THE IMAGE, so this stick would not work. DISM said, in %DISMLOG%:
+  type "%DISMLOG%"
+  dism /unmount-image /mountdir:"%WORK%\mount" /discard
+  exit /b 1
 )
 
 echo Copying the app...
-for %%D in (cli gui db drivers helper agent) do xcopy "%ROOT%\%%D" "%WORK%\mount\Rescue\%%D\" /e /i /y /q >nul
+for %%D in (cli gui db drivers helper agent tools) do xcopy "%ROOT%\%%D" "%WORK%\mount\Rescue\%%D\" /e /i /y /q >nul
 copy /y "%ROOT%\Rescue.cmd" "%WORK%\mount\Rescue\" >nul
 if exist "%ROOT%\..\repair-win11\fix.cmd" xcopy "%ROOT%\..\repair-win11\*.cmd" "%WORK%\mount\Rescue\fallback\" /i /y /q >nul
 
@@ -67,6 +79,8 @@ if /i not "%OK%"=="Y" ( echo Cancelled. & exit /b 1 )
 call MakeWinPEMedia /UFD "%WORK%" %OUT%
 goto built
 :iso
+rem An old ISO makes MakeWinPEMedia ask "overwrite it [Y,N]?" and wait, which looks like a freeze.
+if exist "%OUT%" del /f /q "%OUT%"
 call MakeWinPEMedia /ISO "%WORK%" "%OUT%"
 :built
 echo.
